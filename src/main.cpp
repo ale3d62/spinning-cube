@@ -14,115 +14,134 @@ using namespace std;
 using namespace chrono;
 
 
-vector<vector<vector<char>>> rotateY(vector<vector<vector<char>>> space3d, int theta){
-    vector<vector<vector<char>>> rotatedSpace3d = space3d;
-    int centerX = space3d.size()/2;
-    int centerZ = space3d[0][0].size()/2;
 
-    double cosTheta = cos(theta);
-    double sinTheta = sin(theta);
+float theta; //rads
+int cubeCenter;
+int K1 = 70;
+int distanceToCamera = 100;
+int offset;
+int width, height;
+string frameBuffer;
+vector<float> zBuffer;
+int returnCursorSize = string("\033[0;0H").size();
 
-    for(size_t x = 0; x<space3d.size(); x++)
+
+void calculateSurfacePoint(int cubeX, int cubeY, int cubeZ, char c)
+{
+    float costheta = cos(theta);
+    float sintheta = sin(theta);
+    float x = cubeX, y = cubeY, z = cubeZ;
+    float newX, newY, newZ;
+
+    //Rotate in X axis
+    newY = y * costheta + z * sintheta;
+    newZ = -y * sintheta + z * costheta;
+    y = newY;
+    z = newZ;
+
+    //Rotate in Y axis
+    newX = x * costheta + z * sintheta;
+    newZ = x * -sintheta + z * costheta;
+    x = newX;
+    z = newZ;
+
+    //Rotate in Z axis
+    newX = x * costheta + y * -sintheta;
+    newY = x * sintheta + y * costheta;
+    x = newX;
+    y = newY;
+
+    x += cubeCenter;
+    y += cubeCenter;
+    z += cubeCenter;
+    z +=distanceToCamera;
+
+    int xp = K1*x/z + offset;
+    int yp = K1*y/z + offset;
+    int pointIndex = xp + yp*width;
+    int pointIndexFrame = pointIndex + returnCursorSize;
+
+    if(pointIndexFrame >= 0 && pointIndexFrame < frameBuffer.size())
     {
-        for(size_t y = 0; y<space3d[0].size(); y++)
+        if(z < zBuffer[pointIndex])
         {
-            for(size_t z = 0; z<space3d[0][0].size(); z++)
-            {
-                int relX = x-centerX;
-                int relZ = z-centerZ;
-                int newX = round(relX * cosTheta + relZ * sinTheta) + centerX;
-                int newZ = round(-relX * sinTheta + relZ * cosTheta) + centerZ;
-                //cout<<"newX="<<newX<<" x="<<x<<" newZ="<<newZ<<" z="<<z<<endl;
-                if (newX >= 0 && newX < space3d.size() && newZ >= 0 && newZ < space3d[0][0].size())
-                {
-                    rotatedSpace3d[newX][y][newZ] = space3d[x][y][z];
-                }
-            }
+            zBuffer[pointIndex] = z;
+            frameBuffer[pointIndex] = c;
         }
     }
-
-    return rotatedSpace3d;
-}
-
-
-
-char view(vector<char>& v)
-{
-    for(int i = 0; i<v.size(); i++){
-        if(v[i] != ' ')
-            return v[i];
-    }
-
-    return ' ';
 }
 
 
 
 int main()
 {
-
     //Get terminal resolution
     struct winsize size;
     ioctl(STDOUT_FILENO, TIOCGWINSZ, &size);
-
     
-    vector<char> cubeFaces = {'@', '$', '#', '*', '!', '.'};
-    int space3dSize = min(size.ws_row, size.ws_col);
-    int cubeSide = space3dSize/1.5;
+    int cubeSize;
 
-    if(cubeSide%2 == 1)
-        cubeSide--;
+    //No dynamic resizing for now
+    width = size.ws_col;
+    height = size.ws_row;
 
-    vector<vector<vector<char>>> space3d(space3dSize, vector<vector<char>>(space3dSize, vector<char>(space3dSize, ' ')));
+    cubeSize = min(width, height) * 0.3;
+    offset = (min(width, height)-cubeSize)/2;
+    cubeCenter = cubeSize/2;
+    cubeCenter = cubeSize/2;
+    cubeCenter = cubeSize/2;
 
+    theta = theta = 0;
+    frameBuffer = "\033[0;0H" + string(height * width, ' ');
+    zBuffer = vector<float>(width*height, 2*cubeSize+distanceToCamera);
 
-    //CUBE COORDS
-    //x: wide
-    //y: top
-    //z: depth
-    //[x][y][z]
+    while(1){
+        //check terminal size
+        ioctl(STDOUT_FILENO, TIOCGWINSZ, &size);
+        int newW = size.ws_col;
+        int newH = size.ws_row;
 
-    //INITIALIZE BASIC CUBE
-    //reference coord of cube in space3d
-    int cubeStartRef = (space3dSize-cubeSide)/2;
-    int cubeEndRef = cubeStartRef+cubeSide-1;
-    cout<<"CubeSide= "<<cubeSide<<" - screenSize= "<<space3dSize<<endl;
-    for(int i = cubeStartRef; i<=cubeEndRef; i++)
-    {
-        for(int j = cubeStartRef; j<=cubeEndRef; j++)
+        //if terminal size changes
+        if(newW != width || newH != height)
         {
-            //x-z plane
-            space3d[i][cubeStartRef][j] = cubeFaces[1];
-            space3d[i][cubeEndRef][j] = cubeFaces[4];
-            //y-z plane
-            space3d[cubeStartRef][i][j] = cubeFaces[2];
-            space3d[cubeEndRef][i][j] = cubeFaces[3];
-            //x-y plane
-            space3d[i][j][cubeStartRef] = cubeFaces[0];
-            space3d[i][j][cubeEndRef] = cubeFaces[5];
+            //update variables
+            width = newW;
+            height = newH;
+            cubeSize = min(width, height) * 0.3;
+            offset = (min(width, height)-cubeSize)/2;
+            cubeCenter = cubeSize/2;
 
+            //rebuild frameBuffer and zBuffer
+            frameBuffer = "\033[0;0H" + string(height * width, ' ');
+            zBuffer = vector<float>(width*height, 2*cubeSize+distanceToCamera);
         }
-    }
-
-    for(int i = 0; i<50; i++){
-        space3d = rotateY(space3d, 3);
-
-        string screen = "\033[0;0H";
-        for(int i = 0; i<space3dSize; i++)
+        else
         {
-            for(int j = 0; j<space3dSize; j++)
+            //clear buffers
+            fill(frameBuffer.begin()+returnCursorSize, frameBuffer.end(), ' ');
+            fill(zBuffer.begin(), zBuffer.end(), 2*cubeSize+distanceToCamera);
+        }
+        
+
+        for(int y = -cubeSize; y < cubeSize; y++)
+        {
+            for(int x = -cubeSize; x<cubeSize; x++)
             {
-                screen += view(space3d[i][j]);
+                calculateSurfacePoint(x,y,cubeSize, '@');
+                calculateSurfacePoint(x,y,-cubeSize, '*');
+                calculateSurfacePoint(cubeSize,y,x, '.');
+                calculateSurfacePoint(-cubeSize,y,x, '!');
+                calculateSurfacePoint(x,cubeSize,y, '#');
+                calculateSurfacePoint(x,-cubeSize,y, '$');
             }
-            screen += '\n';
         }
-        cout<<screen;
 
-        this_thread::sleep_for(milliseconds(1000));
+        cout<<frameBuffer;
+
+        this_thread::sleep_for(milliseconds(10));
+        theta+=0.03;
     }
 
-    
 
-    
     return 0;
 }
