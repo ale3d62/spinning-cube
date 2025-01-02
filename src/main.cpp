@@ -17,7 +17,7 @@ using namespace chrono;
 const int K1 = 70;
 const int distanceToCamera = 100;
 const int frameRate = 60; //fps
-const int rotationSpeed = 30; //independent from frameRate
+const int rotationSpeed = 20; //independent from frameRate
 //--------------------------------------------
 
 float thetaX, thetaY, thetaZ; //rads
