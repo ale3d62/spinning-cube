@@ -13,14 +13,19 @@
 using namespace std;
 using namespace chrono;
 
-
+//--------------PARAMETERS--------------------
+const int K1 = 70;
+const int distanceToCamera = 100;
+const int frameRate = 60; //fps
+const int rotationSpeed = 60; //independent from frameRate
+//--------------------------------------------
 
 float theta; //rads
+float costheta, sintheta;
 int cubeCenter;
-int K1 = 70;
-int distanceToCamera = 100;
-int offset;
+int hOffset, vOffset;
 int width, height;
+int msPerFrame = 1000/frameRate;
 string frameBuffer;
 vector<float> zBuffer;
 int returnCursorSize = string("\033[0;0H").size();
@@ -28,8 +33,6 @@ int returnCursorSize = string("\033[0;0H").size();
 
 void calculateSurfacePoint(int cubeX, int cubeY, int cubeZ, char c)
 {
-    float costheta = cos(theta);
-    float sintheta = sin(theta);
     float x = cubeX, y = cubeY, z = cubeZ;
     float newX, newY, newZ;
 
@@ -56,8 +59,8 @@ void calculateSurfacePoint(int cubeX, int cubeY, int cubeZ, char c)
     z += cubeCenter;
     z +=distanceToCamera;
 
-    int xp = K1*x/z + offset;
-    int yp = K1*y/z + offset;
+    int xp = K1*x/z + hOffset;
+    int yp = K1*y/z + vOffset;
     int pointIndex = xp + yp*width;
     int pointIndexFrame = pointIndex + returnCursorSize;
 
@@ -79,27 +82,25 @@ int main()
     struct winsize size;
     ioctl(STDOUT_FILENO, TIOCGWINSZ, &size);
     
-    int cubeSize;
-
-    //No dynamic resizing for now
     width = size.ws_col;
     height = size.ws_row;
-
-    cubeSize = min(width, height) * 0.3;
-    offset = (min(width, height)-cubeSize)/2;
+    int newW, newH;
+    int cubeSize = min(width, height) * 0.3;
+    hOffset = (width-cubeSize)/2;
+    vOffset = (height-cubeSize)/2;
     cubeCenter = cubeSize/2;
-    cubeCenter = cubeSize/2;
-    cubeCenter = cubeSize/2;
-
-    theta = theta = 0;
+    
     frameBuffer = "\033[0;0H" + string(height * width, ' ');
     zBuffer = vector<float>(width*height, 2*cubeSize+distanceToCamera);
 
+    theta = 0;
+
     while(1){
+        auto start = high_resolution_clock::now();
         //check terminal size
         ioctl(STDOUT_FILENO, TIOCGWINSZ, &size);
-        int newW = size.ws_col;
-        int newH = size.ws_row;
+        newW = size.ws_col;
+        newH = size.ws_row;
 
         //if terminal size changes
         if(newW != width || newH != height)
@@ -108,7 +109,8 @@ int main()
             width = newW;
             height = newH;
             cubeSize = min(width, height) * 0.3;
-            offset = (min(width, height)-cubeSize)/2;
+            hOffset = (width-cubeSize)/2;
+            vOffset = (height-cubeSize)/2;
             cubeCenter = cubeSize/2;
 
             //rebuild frameBuffer and zBuffer
@@ -137,9 +139,15 @@ int main()
         }
 
         cout<<frameBuffer;
+        
+        auto stop = high_resolution_clock::now();
+        auto frameDuration = duration_cast<milliseconds>(stop - start);
+        auto msToWait = milliseconds(msPerFrame) - frameDuration;
+        this_thread::sleep_for(milliseconds(msToWait));
 
-        this_thread::sleep_for(milliseconds(10));
-        theta+=0.03;
+        theta += (rotationSpeed/(float)frameRate * 0.05);
+        costheta = cos(theta);
+        sintheta = sin(theta);
     }
 
 
