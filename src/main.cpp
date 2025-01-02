@@ -17,11 +17,12 @@ using namespace chrono;
 const int K1 = 70;
 const int distanceToCamera = 100;
 const int frameRate = 60; //fps
-const int rotationSpeed = 60; //independent from frameRate
+const int rotationSpeed = 30; //independent from frameRate
 //--------------------------------------------
 
-float theta; //rads
-float costheta, sintheta;
+float thetaX, thetaY, thetaZ; //rads
+float costhetaX, costhetaY, costhetaZ;
+float sinthetaX, sinthetaY, sinthetaZ;
 int cubeCenter;
 int hOffset, vOffset;
 int width, height;
@@ -37,20 +38,20 @@ void calculateSurfacePoint(int cubeX, int cubeY, int cubeZ, char c)
     float newX, newY, newZ;
 
     //Rotate in X axis
-    newY = y * costheta + z * sintheta;
-    newZ = -y * sintheta + z * costheta;
+    newY = y * costhetaX + z * sinthetaX;
+    newZ = -y * sinthetaX + z * costhetaX;
     y = newY;
     z = newZ;
 
     //Rotate in Y axis
-    newX = x * costheta + z * sintheta;
-    newZ = x * -sintheta + z * costheta;
+    newX = x * costhetaY + z * sinthetaY;
+    newZ = x * -sinthetaY + z * costhetaY;
     x = newX;
     z = newZ;
 
     //Rotate in Z axis
-    newX = x * costheta + y * -sintheta;
-    newY = x * sintheta + y * costheta;
+    newX = x * costhetaZ + y * -sinthetaZ;
+    newY = x * sinthetaZ + y * costhetaZ;
     x = newX;
     y = newY;
 
@@ -93,7 +94,9 @@ int main()
     frameBuffer = "\033[0;0H" + string(height * width, ' ');
     zBuffer = vector<float>(width*height, 2*cubeSize+distanceToCamera);
 
-    theta = 0;
+    thetaX = 0;
+    thetaY = 0;
+    thetaZ = 0;
 
     while(1){
         auto start = high_resolution_clock::now();
@@ -145,9 +148,15 @@ int main()
         auto msToWait = milliseconds(msPerFrame) - frameDuration;
         this_thread::sleep_for(milliseconds(msToWait));
 
-        theta += (rotationSpeed/(float)frameRate * 0.05);
-        costheta = cos(theta);
-        sintheta = sin(theta);
+        thetaX += (rotationSpeed/(float)frameRate * ((rand()%20+1)/(float)100));
+        thetaY += (rotationSpeed/(float)frameRate * ((rand()%20+1)/(float)100));
+        thetaZ += (rotationSpeed/(float)frameRate * ((rand()%20+1)/(float)100));
+        costhetaX = cos(thetaX);
+        sinthetaX = sin(thetaX);
+        costhetaY = cos(thetaY);
+        sinthetaY = sin(thetaY);
+        costhetaZ = cos(thetaZ);
+        sinthetaZ = sin(thetaZ);
     }
 
 
